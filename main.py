@@ -4,6 +4,7 @@ import http.server
 import socketserver
 import os
 import sys
+import time
 
 def resource_path(rel_path):
     if hasattr(sys, "_MEIPASS"):
@@ -21,9 +22,10 @@ if __name__ == "__main__":
     t = threading.Thread(target=start_server, args=(PORT,), daemon=True)
     t.start()
 
+    cache_bust = int(time.time())
     window = webview.create_window(
         "Location Tracker - Viewer",
-        f"http://127.0.0.1:{PORT}/viewer.html",
+        f"http://127.0.0.1:{PORT}/viewer.html?v={cache_bust}",
         width=480,
         height=820,
         resizable=True,
