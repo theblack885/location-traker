@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Location Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --cyan:#4FD1FF; --violet:#8B5CF6; --green:#34E39B; --rose:#FF6B8B;
+  }
+  * { box-sizing: border-box; }
+  html,body{margin:0;height:100%;font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+    background:linear-gradient(180deg,#070712,#130F2B,#05060F);color:#fff;overflow:hidden}
+
+  #app{position:absolute;inset:0;overflow-y:auto;padding:20px}
+  #app::-webkit-scrollbar{width:0}
+
+  .header{display:flex;align-items:center;margin-bottom:18px}
+  .icon{width:44px;height:44px;border-radius:16px;background:linear-gradient(135deg,var(--cyan),var(--violet));
+    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .title h1{font-size:24px;margin:0;font-weight:800}
+  .title p{font-size:12px;margin:2px 0 0;color:rgba(255,255,255,0.55)}
+  .title{margin-left:12px}
+
+  .segment{display:flex;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+    border-radius:22px;padding:5px;margin-bottom:16px}
+  .segment button{flex:1;border:none;background:transparent;color:rgba(255,255,255,0.55);
+    padding:12px 0;border-radius:18px;font-weight:700;font-size:14px;cursor:pointer;transition:0.2s}
+  .segment button.active{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#fff}
+
+  .glass{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    border-radius:28px;padding:18px;margin-bottom:16px}
+  .label{font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);margin-bottom:6px;display:block}
+  input[type=text]{width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.06);color:#fff;font-size:15px;outline:none}
+  input[type=text]:focus{border-color:var(--cyan)}
+
+  .shareCard{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    border-radius:28px;padding:28px 24px;text-align:center;display:none}
+  .orbWrap{width:150px;height:150px;margin:0 auto 18px;position:relative;display:flex;align-items:center;justify-content:center}
+  .orb{width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#2B2B4A,#1A1A30);
+    display:flex;align-items:center;justify-content:center;font-size:30px;transition:0.4s;z-index:2}
+  .orb.active{background:linear-gradient(135deg,var(--green),var(--cyan))}
+  .ring{position:absolute;border:3px solid var(--green);border-radius:50%;opacity:0;animation:pulse 2.2s infinite}
+  .ring.show{opacity:1}
+  .ring:nth-child(1){width:110px;height:110px;animation-delay:0s}
+  .ring:nth-child(2){width:110px;height:110px;animation-delay:0.7s}
+  .ring:nth-child(3){width:110px;height:110px;animation-delay:1.4s}
+  @keyframes pulse{0%{transform:scale(0.7);opacity:0.6}100%{transform:scale(1.5);opacity:0}}
+
+  .shareCard h2{font-size:18px;margin:0 0 4px;font-weight:700}
+  .shareCard p{font-size:12px;color:rgba(255,255,255,0.55);margin:0 0 18px}
+  .pill{display:inline-block;padding:14px 32px;border-radius:24px;font-weight:700;font-size:15px;
+    cursor:pointer;border:none;color:#fff}
+  .pill.off{background:linear-gradient(90deg,var(--cyan),var(--violet))}
+  .pill.on{background:rgba(255,107,139,0.18);border:1px solid rgba(255,107,139,0.6);color:var(--rose)}
+
+  #mapCard{display:none;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);height:480px;position:relative}
+  #map{position:absolute;inset:0;filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.9)}
+  #infoCard{position:absolute;left:14px;right:14px;bottom:14px;z-index:10;
+    background:rgba(19,15,43,0.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:16px 18px;display:none}
+  .status{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 1.6s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  #addr{font-size:14.5px;font-weight:600;line-height:1.4}
+  #coords{font-size:12.5px;color:var(--cyan);margin-top:8px;font-weight:600}
+  #time{font-size:11.5px;color:rgba(255,255,255,0.45);margin-top:5px}
+  .leaflet-control-attribution{font-size:9px;background:rgba(7,7,18,0.6)!important;color:#888!important}
+  .leaflet-control-zoom a{background:rgba(19,15,43,0.85)!important;color:#fff!important;border:1px solid rgba(255,255,255,0.12)!important}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div class="icon">📍</div>
+    <div class="title">
+      <h1>Location Tracker</h1>
+      <p>Dono taraf se raazi hoke live location share karo</p>
+    </div>
+  </div>
+
+  <div class="segment">
+    <button id="tabShare" class="active">Share karo</button>
+    <button id="tabView">Dekho</button>
+  </div>
+
+  <div class="glass">
+    <span class="label">Room code</span>
+    <input type="text" id="roomInput" maxlength="4" placeholder="dono taraf same, jaise 1234" inputmode="numeric">
+  </div>
+
+  <div class="shareCard" id="shareScreen" style="display:block">
+    <div class="orbWrap">
+      <div class="ring" id="ring1"></div>
+      <div class="ring" id="ring2"></div>
+      <div class="ring" id="ring3"></div>
+      <div class="orb" id="orb">📍</div>
+    </div>
+    <h2 id="shareTitle">Sharing band hai</h2>
+    <p id="shareSub">Dabao to is PC ki live location share karna shuru karo</p>
+    <button class="pill off" id="shareBtn">Share karo</button>
+  </div>
+
+  <div id="mapCard">
+    <div id="map"></div>
+    <div id="infoCard">
+      <div class="status"><div class="dot"></div><span style="font-size:11.5px;color:rgba(255,255,255,0.6);font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Live</span></div>
+      <div id="addr">Location dhundi ja rahi hai...</div>
+      <div id="coords"></div>
+      <div id="time"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVER_HOST = "traker-mi1p.onrender.com";
+const BASE = "https://" + SERVER_HOST;
+
+let mode = "share";
+let sharing = false;
+let watchId = null;
+let map = null, marker = null, lastKey = "", viewPoll = null;
+
+const roomInput = document.getElementById('roomInput');
+const tabShare = document.getElementById('tabShare');
+const tabView = document.getElementById('tabView');
+const shareScreen = document.getElementById('shareScreen');
+const mapCard = document.getElementById('mapCard');
+const orb = document.getElementById('orb');
+const rings = [document.getElementById('ring1'), document.getElementById('ring2'), document.getElementById('ring3')];
+const shareBtn = document.getElementById('shareBtn');
+const shareTitle = document.getElementById('shareTitle');
+const shareSub = document.getElementById('shareSub');
+
+function room() { return roomInput.value.trim() || "1234"; }
+
+function switchTab(m) {
+  mode = m;
+  tabShare.classList.toggle('active', m === 'share');
+  tabView.classList.toggle('active', m === 'view');
+  shareScreen.style.display = m === 'share' ? 'block' : 'none';
+  mapCard.style.display = m === 'view' ? 'block' : 'none';
+  if (m === 'view') {
+    initMap();
+    startViewing();
+  } else {
+    stopViewing();
+  }
+}
+tabShare.onclick = () => switchTab('share');
+tabView.onclick = () => switchTab('view');
+
+function setSharingUI(on) {
+  orb.classList.toggle('active', on);
+  rings.forEach(r => r.classList.toggle('show', on));
+  shareTitle.innerText = on ? "Location share ho rahi hai" : "Sharing band hai";
+  shareSub.innerText = on ? "Server ko har 5 second me location bheji ja rahi hai. Kabhi bhi band kar sakte ho"
+                           : "Dabao to is PC ki live location share karna shuru karo";
+  shareBtn.innerText = on ? "Band karo" : "Share karo";
+  shareBtn.className = "pill " + (on ? "on" : "off");
+}
+
+function sendLocation(lat, lng) {
+  fetch(BASE + "/location", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({room: room(), lat: lat, lng: lng})
+  }).catch(() => {});
+}
+
+shareBtn.onclick = () => {
+  if (sharing) {
+    sharing = false;
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    setSharingUI(false);
+    return;
+  }
+  if (!navigator.geolocation) { alert("Is PC/browser me location support nahi hai"); return; }
+  navigator.geolocation.getCurrentPosition(
+    () => {
+      sharing = true;
+      setSharingUI(true);
+      watchId = navigator.geolocation.watchPosition(
+        pos => sendLocation(pos.coords.latitude, pos.coords.longitude),
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 4000, timeout: 8000 }
+      );
+    },
+    err => { alert("Location permission allow karo (Windows Settings > Privacy > Location bhi ON hona chahiye)"); },
+    { enableHighAccuracy: true }
+  );
+};
+
+const pulseIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:18px;height:18px;border-radius:50%;background:#4FD1FF;border:3px solid #fff;box-shadow:0 0 16px #4FD1FF"></div>',
+  iconSize: [18,18], iconAnchor: [9,9]
+});
+
+function initMap() {
+  if (map) { setTimeout(() => map.invalidateSize(), 150); return; }
+  map = L.map('map', {zoomControl:true}).setView([20.5937,78.9629], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors', subdomains: 'abc', maxZoom: 19
+  }).addTo(map);
+  setTimeout(() => map.invalidateSize(), 200);
+}
+
+function reverseGeocode(lat, lng) {
+  const key = lat.toFixed(4) + "," + lng.toFixed(4);
+  if (key === lastKey) return;
+  lastKey = key;
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+    .then(r => r.json())
+    .then(d => { document.getElementById('addr').innerText = d.display_name || "Pata nahi mil paya"; })
+    .catch(() => { document.getElementById('addr').innerText = "Pata load nahi ho paya"; });
+}
+
+function pollView() {
+  fetch(BASE + "/location/" + room())
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.lat) {
+        document.getElementById('infoCard').style.display = 'block';
+        const pos = [d.lat, d.lng];
+        if (!marker) { marker = L.marker(pos, {icon: pulseIcon}).addTo(map); map.setView(pos, 16); }
+        else { marker.setLatLng(pos); }
+        reverseGeocode(d.lat, d.lng);
+        document.getElementById('coords').innerText = "GPS  " + d.lat.toFixed(6) + ", " + d.lng.toFixed(6);
+        document.getElementById('time').innerText = "Last update " + new Date(d.time).toLocaleTimeString();
+      }
+    }).catch(() => {});
+}
+
+function startViewing() {
+  if (viewPoll) clearInterval(viewPoll);
+  pollView();
+  viewPoll = setInterval(pollView, 5000);
+}
+function stopViewing() {
+  if (viewPoll) clearInterval(viewPoll);
+  viewPoll = null;
+}
+</script>
+</body>
+</html>
