@@ -24,10 +24,10 @@ if __name__ == "__main__":
 
     cache_bust = int(time.time())
     window = webview.create_window(
-        "Location Tracker - Viewer",
-        f"http://127.0.0.1:{PORT}/viewer.html?v={cache_bust}",
-        width=480,
-        height=820,
+        "Location Tracker",
+        f"http://127.0.0.1:{PORT}/app.html?v={cache_bust}",
+        width=460,
+        height=840,
         resizable=True,
         background_color="#070712"
     )
